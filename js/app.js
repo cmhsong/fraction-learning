@@ -19,7 +19,7 @@ function applySettings() {
 }
 function cleanup() {
   if (cur.player) { cur.player.destroy(); cur.player = null; }
-  cur.practice = null; Voice.stop();
+  cur.practice = null; cur.maker = null; Voice.stop();
   window.scrollTo(0, 0);
 }
 const stars = n => `<span class="stars" aria-label="별 ${n}개">${'★'.repeat(n)}<i>${'★'.repeat(3 - n)}</i></span>`;
@@ -73,6 +73,7 @@ function openUnit(id, tab) {
       <div class="utt"><span class="uico">${u.icon}</span><div><div class="uno">${u.id}단계</div><h1>${u.title}</h1></div></div>
       <div class="tabs">
         ${u.lesson ? `<button class="tab ${tab === 'learn' ? 'on' : ''}" data-t="learn">📖 개념 배우기</button>` : ''}
+        ${u.maker ? `<button class="tab ${tab === 'make' ? 'on' : ''}" data-t="make">✂️ 쪼개고 색칠하기</button>` : ''}
         <button class="tab ${tab === 'quiz' ? 'on' : ''}" data-t="quiz">✏️ 문제 풀기</button>
       </div>
     </div>
@@ -81,8 +82,103 @@ function openUnit(id, tab) {
   $$('.tab').forEach(b => { b.onclick = () => openUnit(id, b.dataset.t); });
   if (tab === 'learn') {
     $('#ubody').innerHTML = '<div class="card lesson"></div>';
-    cur.player = new Player($('.lesson'), u.lesson(), { doneLabel: '✏️ 문제 풀러 가기', onDone: () => openUnit(id, 'quiz') });
-  } else startPractice(u);
+    cur.player = new Player($('.lesson'), u.lesson(), u.maker ? { doneLabel: '✂️ 쪼개고 색칠하기 연습', onDone: () => openUnit(id, 'make') } : { doneLabel: '✏️ 문제 풀러 가기', onDone: () => openUnit(id, 'quiz') });
+  } else if (tab === 'make') startMaker();
+  else startPractice(u);
+}
+
+/* ---------- 쪼개고 색칠하기 : 분모만큼 쪼개고 분자만큼 색칠하는 반복 연습 ---------- */
+const MK_LEVELS = [['easy', '쉬움 (분모 2~6)'], ['normal', '보통 (분모 2~10)'], ['over', '1보다 큰 분수']];
+function startMaker() {
+  const opt = settings.maker = Object.assign({ shape: 'pizza', level: 'easy' }, settings.maker);
+  const st = cur.maker = { score: 0, streak: 0, m: 1, cnt: 0, done: false, n: 0, d: 0, U: 1 };
+  $('#ubody').innerHTML = `
+    <div class="pgrid maker">
+      <section class="card qcard">
+        <div class="qhead"><span class="qno" id="mkNo"></span><button class="btn ghost sm" id="mkSpeak">🔊 문제 듣기</button></div>
+        <div class="mktarget"><div><span>만들 분수</span><b id="mkT"></b></div><i>→</i><div><span>지금 만든 분수</span><b id="mkL" class="live"></b></div></div>
+        <div class="visual"><svg id="mkSvg"></svg></div>
+        <div class="mksteps">
+          <div class="mkstep" id="mkS1"><h3>① 분모만큼 똑같이 쪼개기</h3>
+            <div class="row center"><button class="btn lg" id="mkMinus" aria-label="조각 줄이기">− 합치기</button><span class="mkm"><b id="mkM">1</b>조각</span><button class="btn lg" id="mkPlus" aria-label="조각 늘리기">✂️ 쪼개기 +</button></div></div>
+          <div class="mkstep" id="mkS2"><h3>② 분자만큼 색칠하기</h3>
+            <p>칸을 누르거나 드래그해요 · 색칠한 칸 <b id="mkC">0</b>칸</p></div>
+        </div>
+        <div class="feedback" id="fb"></div>
+        <div class="qact"><button class="btn pri lg" id="mkCheck">확인</button></div>
+      </section>
+      <aside class="card ipanel">
+        <h3 class="ph">연습 설정</h3>
+        <div class="seg" id="mkShape">${[['pizza', '🍕 피자'], ['bar', '🍫 초콜릿']].map(([v, n]) => `<button data-v="${v}">${n}</button>`).join('')}</div>
+        <div class="seg col" id="mkLevel">${MK_LEVELS.map(([v, n]) => `<button data-v="${v}">${n}</button>`).join('')}</div>
+        <div class="mkscore"><div><b id="mkScore">0</b><span>맞힌 문제</span></div><div><b id="mkStreak">0</b><span>연속 정답</span></div></div>
+        <button class="btn" id="mkSkip">↻ 다른 문제로 바꾸기</button>
+        <p class="tip">문제는 끝없이 새로 나와요. 원하는 만큼 반복해서 연습하세요.</p>
+      </aside>
+    </div>`;
+  const speak = () => Voice.speak(spk(`{${st.n}/${st.d}}${eul(st.n)} 만들어 보세요. 먼저 분모 ${st.d}만큼 똑같이 쪼개고, 분자 ${st.n}만큼 색칠해요.`));
+  const refresh = () => {
+    $('#mkNo').textContent = `연습 ${st.score + (st.done ? 0 : 1)}`;
+    $('#mkT').innerHTML = fmt(`{${st.n}/${st.d}}`);
+    $('#mkL').innerHTML = fmt(`{${st.cnt}/${st.m}}`);
+    $('#mkM').textContent = st.m; $('#mkC').textContent = st.cnt;
+    $('#mkS1').classList.toggle('on', !st.done && st.cnt === 0);
+    $('#mkS2').classList.toggle('on', !st.done && st.cnt > 0);
+    $('#mkMinus').disabled = st.done || st.m <= 1; $('#mkPlus').disabled = st.done || st.m >= 12;
+    $('#mkScore').textContent = st.score; $('#mkStreak').textContent = st.streak;
+    $$('#mkShape button').forEach(b => b.classList.toggle('on', b.dataset.v === opt.shape));
+    $$('#mkLevel button').forEach(b => b.classList.toggle('on', b.dataset.v === opt.level));
+    $('#mkCheck').textContent = st.done ? '다음 문제 ▶' : '확인';
+  };
+  const draw = () => {
+    const S = new Scene($('#mkSvg'), 800, 300); let cells;
+    if (opt.shape === 'pizza') cells = pizzas(S, 0, st.m, { cx: 400, cy: 150, w: 540, units: st.U }).flatMap(p => p.slices.map(s => ({ el: s.el, paint: s.p, dot: s.dot })));
+    else cells = S.qty({ x: 80, y: 100, w: 640, h: 100, num: 0, d: st.m, units: st.U }).cells.map(c => ({ el: c.el, paint: c.el }));
+    An.pop(cells.map(c => c.el));
+    st.cnt = 0;
+    dragBoard($('#mkSvg'), cells, LOOK[opt.shape], cnt => { st.cnt = cnt; refresh(); }, () => st.done);
+    refresh();
+  };
+  const fresh = () => {
+    let n, d;
+    do {
+      if (opt.level === 'over') { d = rnd(2, 5); n = rnd(d + 1, 2 * d - 1); }
+      else { d = rnd(2, opt.level === 'easy' ? 6 : 10); n = rnd(1, d - 1); }
+    } while (n === st.n && d === st.d);
+    Object.assign(st, { n, d, U: n > d ? 2 : 1, m: 1, done: false });
+    $('#fb').className = 'feedback';
+    draw(); speak();
+  };
+  const split = dm => { if (st.done) return; st.m = clamp(st.m + dm, 1, 12); $('#fb').className = 'feedback'; draw(); };
+  const check = () => {
+    if (st.done) { fresh(); return; }
+    const fb = $('#fb'), { n, d, m, cnt } = st;
+    if (m === d && cnt === n) {
+      st.done = true; st.score++; st.streak++;
+      fb.className = 'feedback ok show';
+      fb.innerHTML = `<b>🎉 정답이에요!</b><p>${fmt(n > d ? `{1/${d}}${iga(1)} ${n}개이면 {${n}/${d}}${ye(n)}.` : `전체를 똑같이 ${d}${ro(d)} 나눈 것 중의 ${n}${ira(n)}서 {${n}/${d}}${ye(n)}.`)}</p>`;
+      party(st.streak % 5 === 0);
+      Voice.speak(st.streak % 5 === 0 ? `대단해요! ${st.streak}번 연속 정답이에요.` : pick(['정답이에요!', '잘했어요!', '훌륭해요!']));
+    } else {
+      st.streak = 0;
+      const same = cnt > 0 && cnt * d === n * m;
+      const msg = m === 1 && cnt === 0 ? `먼저 쪼개기 버튼으로 ${opt.shape === 'pizza' ? '피자를' : '초콜릿을'} 똑같이 나누어 보세요.`
+        : m !== d ? `${same ? '크기는 같지만, ' : ''}분모가 ${d}${ira(d)}서 한 개를 똑같이 ${d}조각으로 쪼개야 해요. 지금은 ${m}조각이에요.`
+        : `${d}조각으로 잘 쪼갰어요! 분자가 ${n}${ira(n)}서 ${n}칸을 색칠해야 해요. 지금은 ${cnt}칸이에요.`;
+      fb.className = 'feedback warn show';
+      fb.innerHTML = `<b>🤔 다시 해 봐요.</b> ${esc(msg)}`;
+      Voice.speak(msg);
+    }
+    refresh();
+  };
+  $('#mkPlus').onclick = () => split(1);
+  $('#mkMinus').onclick = () => split(-1);
+  $('#mkCheck').onclick = check;
+  $('#mkSpeak').onclick = speak;
+  $('#mkSkip').onclick = fresh;
+  $$('#mkShape button').forEach(b => { b.onclick = () => { opt.shape = b.dataset.v; applySettings(); if (st.done) refresh(); else draw(); }; });
+  $$('#mkLevel button').forEach(b => { b.onclick = () => { opt.level = b.dataset.v; applySettings(); fresh(); }; });
+  fresh();
 }
 
 /* ---------- 문제 풀기 ---------- */
@@ -412,6 +508,6 @@ document.addEventListener('keydown', e => {
 applySettings();
 /* 주소 끝에 #5 (5단계 개념) 또는 #5q (5단계 문제) 를 붙이면 바로 그 단원이 열림 */
 (() => {
-  const m = /^#(\d+)(q?)$/.exec(location.hash), u = m && UNITS.find(x => x.id === +m[1]);
-  if (u) openUnit(u.id, m[2] ? 'quiz' : null); else renderHome();
+  const m = /^#(\d+)([qm]?)$/.exec(location.hash), u = m && UNITS.find(x => x.id === +m[1]);
+  if (u) openUnit(u.id, m[2] === 'q' ? 'quiz' : m[2] === 'm' && u.maker ? 'make' : null); else renderHome();
 })();

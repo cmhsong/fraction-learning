@@ -132,7 +132,7 @@ G[9] = i => {
 G[10] = () => G[rnd(1, 9)](rnd(0, 9));
 
 const UNITS = [
-  { id: 1, icon: '🍕', color: '#F59E0B', title: '분수의 뜻', desc: '전체와 부분, 분모와 분자', lesson: () => { const n = rnd(5, 8), k = rnd(2, n - 1); return [...L.meaning(4, 3), ...L.make('bar', 2, 5), ...L.make('pizza', k, n)]; } },
+  { id: 1, icon: '🍕', color: '#F59E0B', title: '분수의 뜻', desc: '전체와 부분, 분모와 분자', maker: true, lesson: () => { const n = rnd(5, 8), k = rnd(2, n - 1); return [...L.meaning(4, 3), ...L.make('bar', 2, 5), ...L.make('pizza', k, n)]; } },
   { id: 2, icon: '⚖️', color: '#EF6C4D', title: '분수의 크기 비교', desc: '어느 쪽이 더 클까요?', lesson: () => [...L.compare(fr(2, 5), fr(4, 5)), ...L.compare(fr(1, 3), fr(1, 6))] },
   { id: 3, icon: '🧩', color: '#D9488F', title: '진분수 · 가분수 · 대분수', desc: '여러 가지 분수와 바꾸어 쓰기', lesson: () => [...L.kinds(), ...L.make('pizza', 5, 4), ...L.make('bar', 7, 3)] },
   { id: 4, icon: '🔍', color: '#8B5CF6', title: '크기가 같은 분수', desc: '약분과 통분', lesson: () => [...L.equiv(1, 2, 3), ...L.reduce(4, 6)] },

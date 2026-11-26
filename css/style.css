@@ -196,3 +196,24 @@ input[type=checkbox]{width:1.2rem;height:1.2rem;accent-color:var(--pri)}
   .circ{border-style:solid;border-color:#000}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+
+/* 쪼개고 색칠하기 */
+.mktarget{display:flex;align-items:center;justify-content:center;gap:1.6rem;margin:.3rem 0 .6rem}
+.mktarget div{display:flex;flex-direction:column;align-items:center;gap:.2rem}
+.mktarget div>span{font-size:.82rem;font-weight:700;color:var(--sub)}
+.mktarget b{font-size:2.3rem;line-height:1}
+.mktarget b.live{color:#E8623F}
+.mktarget i{font-style:normal;font-size:1.6rem;color:#BDB5A3}
+.maker .visual svg{max-height:17rem}
+.mksteps{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin-top:.7rem}
+.mkstep{border:2px solid var(--line);border-radius:1rem;padding:.7rem .8rem;text-align:center;display:flex;flex-direction:column;gap:.4rem;justify-content:center}
+.mkstep.on{border-color:var(--pri);background:var(--pri-l)}
+.mkstep h3{font-size:.95rem;font-weight:800}
+.mkstep p{font-size:.9rem;color:var(--sub)}.mkstep p b{color:var(--pri);font-size:1.2rem}
+.mkm{font-weight:700;min-width:4.5rem}.mkm b{font-size:1.7rem;color:var(--pri)}
+.ph{font-size:.95rem;font-weight:800}
+.seg.col{flex-direction:column}
+.mkscore{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;text-align:center}
+.mkscore div{background:#F4F1EA;border-radius:.8rem;padding:.6rem .3rem;display:flex;flex-direction:column}
+.mkscore b{font-size:1.7rem;color:var(--pri);line-height:1.2}.mkscore span{font-size:.78rem;color:var(--sub);font-weight:700}
+@media (max-width:820px){.mksteps{grid-template-columns:1fr}}
