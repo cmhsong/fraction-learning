@@ -96,7 +96,7 @@ const slotOrder = p => (p.kind === 'int' ? ['v'] : ['n', 'd', 'w'].filter(s => p
 function answerHTML(p) {
   if (p.kind === 'frac') return `<span class="ans">${p.slots.includes('w') ? '<button class="slot sw" data-s="w" aria-label="자연수 칸"></button>' : ''}<span class="ansv"><button class="slot" data-s="n" aria-label="분자 칸"></button><span class="ansbar"></span><button class="slot" data-s="d" aria-label="분모 칸"></button></span></span>`;
   if (p.kind === 'int') return `<span class="ans">${p.expr ? '<span class="bxl"><span class="bx"></span> =</span>' : ''}<button class="slot" data-s="v" aria-label="답 칸"></button></span>`;
-  if (p.kind === 'tap') return `<span class="tapinfo">색칠한 칸: <b id="tapCount">0</b>칸</span>`;
+  if (p.kind === 'tap') return `<span class="tapinfo">👆 칸을 누르거나 드래그해서 색칠해요 · 색칠한 칸: <b id="tapCount">0</b>칸</span>`;
   return '';
 }
 
@@ -147,19 +147,7 @@ function drawTap(p, pr) {
   const S = new Scene($('#qvis'), 800, 200); let cells;
   if (p.shape === 'pizza') cells = S.pizza({ cx: 400, cy: 100, r: 86, n: p.n, fill: 0 }).slices.map(s => ({ el: s.el, paint: s.p, dot: s.dot }));
   else cells = S.bar({ x: 160, y: 65, w: 480, h: 70, n: p.n, fill: 0 }).cells.map(c => ({ el: c.el, paint: c.el }));
-  const on = p.shape === 'pizza' ? C.pizza : C.choco;
-  cells.forEach((c, i) => {
-    c.el.classList.add('tapcell');
-    c.el.addEventListener('click', () => {
-      if (pr.done) return;
-      const add = !pr.taps.has(i);
-      if (add) pr.taps.add(i); else pr.taps.delete(i);
-      c.paint.setAttribute('fill', add ? on : C.empty);
-      if (c.dot) c.dot.setAttribute('opacity', add ? 1 : 0);
-      if (add) An.pulse([c.el]);
-      $('#tapCount').textContent = pr.taps.size;
-    });
-  });
+  pr.taps = dragBoard($('#qvis'), cells, LOOK[p.shape], cnt => { $('#tapCount').textContent = cnt; }, () => pr.done);
 }
 
 function refreshSlots() {

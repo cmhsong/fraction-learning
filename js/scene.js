@@ -18,6 +18,8 @@ class Scene {
   constructor(svg, W = 800, H = 340) {
     this.svg = svg; svg.innerHTML = '';
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.onpointerdown = svg.onpointermove = svg.onpointerup = svg.onpointercancel = svg.onpointerleave = null;
+    svg.style.touchAction = '';
   }
   text(x, y, str, o = {}) {
     const t = sv('text', { x, y, 'text-anchor': o.anchor || 'middle', 'dominant-baseline': 'central', 'font-size': o.size || 22, 'font-weight': o.weight || 800, fill: o.fill || C.ink }, this.svg);
@@ -91,6 +93,36 @@ class Scene {
   }
 }
 
+/* 칸을 누르거나 드래그해서 색칠하는 판. cells: [{el, paint, dot?}] */
+function dragBoard(svg, cells, look, onChange, isLocked) {
+  const on = new Set(); let mode = null;
+  svg.style.touchAction = 'none';
+  cells.forEach((c, i) => { c.el.setAttribute('data-ci', i); c.el.classList.add('tapcell'); });
+  const set = (i, v) => {
+    if (on.has(i) === v) return;
+    if (v) on.add(i); else on.delete(i);
+    const c = cells[i];
+    c.paint.setAttribute('fill', v ? look.fill : C.empty);
+    c.paint.setAttribute('stroke', v ? look.stroke : C.emptyLine);
+    if (c.dot) c.dot.setAttribute('opacity', v ? 1 : 0);
+    if (v) An.pulse([c.el]);
+    onChange(on.size);
+  };
+  const hit = e => {
+    const t = document.elementFromPoint(e.clientX, e.clientY), g = t && t.closest && t.closest('[data-ci]');
+    return g && svg.contains(g) ? +g.getAttribute('data-ci') : -1;
+  };
+  svg.onpointerdown = e => {
+    if (isLocked && isLocked()) return;
+    const i = hit(e); if (i < 0) return;
+    e.preventDefault(); mode = !on.has(i); set(i, mode);
+  };
+  svg.onpointermove = e => { if (mode === null) return; const i = hit(e); if (i >= 0) set(i, mode); };
+  svg.onpointerup = svg.onpointercancel = svg.onpointerleave = () => { mode = null; };
+  return on;
+}
+const LOOK = { pizza: { fill: C.pizza, stroke: C.pizzaLine }, bar: { fill: C.choco, stroke: 'rgba(0,0,0,.28)' } };
+
 /* anime.js 로 움직임 주기 (라이브러리가 없으면 완성된 그림만 보여 줌) */
 const An = {
   ok: () => !!window.anime,
@@ -141,7 +173,8 @@ class Player {
     this.i = i = clamp(i, 0, this.steps.length - 1);
     const st = this.steps[i], svg = $('svg', this.root), last = i === this.steps.length - 1;
     if (window.anime) anime.remove(svg.querySelectorAll('*'));
-    st.draw(new Scene(svg));
+    if (st.interactive && this.auto) { this.auto = false; $('[data-a=auto]', this.root).textContent = '▶ 자동 재생'; }
+    st.draw(new Scene(svg), this);
     $('.cap', this.root).innerHTML = fmt(st.cap);
     $('.dots', this.root).innerHTML = this.steps.map((_, j) => `<i class="${j === i ? 'on' : j < i ? 'past' : ''}"></i>`).join('');
     $('[data-a=prev]', this.root).disabled = i === 0;
@@ -152,6 +185,7 @@ class Player {
       else this.setAuto(false, true);
     });
   }
+  say(cap) { $('.cap', this.root).innerHTML = fmt(cap); Voice.speak(spk(cap)); }
   next() {
     if (this.i < this.steps.length - 1) this.show(this.i + 1);
     else if (this.o.onDone) this.o.onDone();
@@ -171,7 +205,7 @@ const L = {};
 const els = arr => arr.map(c => c.el);
 
 function pizzas(S, num, d, o = {}) {
-  const U = Math.max(1, Math.ceil(num / d));
+  const U = o.units || Math.max(1, Math.ceil(num / d));
   const r = Math.min(110, (o.w || 460) / (U * 2) - 12);
   const cx0 = (o.cx || 260) - (U - 1) * (r + 12), out = [];
   for (let u = 0; u < U; u++) out.push(S.pizza({ cx: cx0 + u * (2 * r + 24), cy: o.cy || 165, r, n: d, fill: clamp(num - u * d, 0, d) }));
@@ -193,6 +227,37 @@ L.meaning = (n = 4, k = 3) => [
       An.pop([S.text(665, 120, '← 분자', { size: 26, fill: C.coral }), S.text(665, 214, '← 분모', { size: 26, fill: C.blue })], 200);
     } }
 ];
+
+/* 거꾸로 해 보기: 제시된 분수만큼 칸을 드래그해서 직접 만들기 */
+L.make = (shape, k, n) => {
+  const T = fr(k, n), U = Math.max(1, Math.ceil(k / n));
+  return [{
+    interactive: true,
+    cap: `이번에는 거꾸로 해 봐요! 칸을 누르거나 **드래그**해서 ${mk(T)}만큼 색칠해 보세요.`,
+    draw(S, pl) {
+      let cells;
+      if (shape === 'pizza') cells = pizzas(S, 0, n, { cx: 255, w: 470, units: U }).flatMap(p => p.slices.map(s => ({ el: s.el, paint: s.p, dot: s.dot })));
+      else cells = S.qty({ x: 40, y: 125, w: 450, h: 90, num: 0, d: n, units: U }).cells.map(c => ({ el: c.el, paint: c.el }));
+      S.text(640, 40, '만들 분수', { size: 18, fill: '#667085', weight: 700 });
+      S.frac(640, 105, T, { size: 42 });
+      S.text(640, 200, '지금 색칠한 양', { size: 18, fill: '#667085', weight: 700 });
+      let live = S.frac(640, 268, fr(0, n), { size: 42, fill: C.coral }), done = false;
+      const hint = S.text(640, 326, `${k}칸을 색칠해요`, { size: 16, fill: '#667085', weight: 700 });
+      An.pop(cells.map(c => c.el));
+      dragBoard(S.svg, cells, LOOK[shape], cnt => {
+        live.remove();
+        live = S.frac(640, 268, fr(cnt, n), { size: 42, fill: cnt === k ? C.green : C.coral });
+        hint.textContent = cnt === k ? '딱 맞아요! 👍' : cnt < k ? `${k - cnt}칸 더 색칠해요` : `${cnt - k}칸 많아요 · 색칠한 칸을 다시 누르면 지워져요`;
+        hint.setAttribute('fill', cnt === k ? C.green : '#667085');
+        if (cnt === k && !done) {
+          done = true;
+          if (typeof party === 'function') party(false);
+          if (pl) pl.say(U > 1 ? `잘했어요! {1/${n}}${iga(1)} ${k}개이면 ${mk(T)}${ye(k)}. 1보다 큰 분수도 만들 수 있어요.` : `잘했어요! 똑같이 나눈 ${n}칸 중 ${k}칸을 색칠하면 ${mk(T)}${ye(k)}.`);
+        }
+      });
+    }
+  }];
+};
 
 L.compare = (A, B) => {
   const va = tot(A) * B.d, vb = tot(B) * A.d, sign = va > vb ? '>' : va < vb ? '<' : '=';

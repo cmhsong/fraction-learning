@@ -15,7 +15,7 @@ G[1] = i => {
   const demo = () => L.meaning(n, k);
   const why = `전체를 똑같이 ${n}${ro(n)} 나눈 것 중의 ${k}${ira(k)}서 {${k}/${n}}${ye(k)}.`;
   if (i < 4) return fracP({ prompt: '색칠한 부분은 전체의 얼마인지 분수로 나타내세요.', visual: vis(k), slots: ['n', 'd'], mode: 'exact', ans: fr(k, n), explain: why, demo });
-  if (i < 7) return { kind: 'tap', shape, n, ans: k, prompt: `{${k}/${n}}만큼 칸을 눌러 색칠하세요.`, visual: vis(0), explain: `분모 ${n}${eun(n)} 전체 칸의 수, 분자 ${k}${eun(k)} 색칠할 칸의 수예요.`, demo };
+  if (i < 7) return { kind: 'tap', shape, n, ans: k, prompt: `{${k}/${n}}만큼 색칠하세요.`, visual: vis(0), explain: `분모 ${n}${eun(n)} 전체 칸의 수, 분자 ${k}${eun(k)} 색칠할 칸의 수예요.`, demo };
   return fracP({ prompt: `전체를 똑같이 ${n}${ro(n)} 나눈 것 중의 ${k}${eun(k)} 얼마인지 분수로 쓰세요.`, slots: ['n', 'd'], mode: 'exact', ans: fr(k, n), explain: why, demo });
 };
 
@@ -132,9 +132,9 @@ G[9] = i => {
 G[10] = () => G[rnd(1, 9)](rnd(0, 9));
 
 const UNITS = [
-  { id: 1, icon: '🍕', color: '#F59E0B', title: '분수의 뜻', desc: '전체와 부분, 분모와 분자', lesson: () => L.meaning(4, 3) },
+  { id: 1, icon: '🍕', color: '#F59E0B', title: '분수의 뜻', desc: '전체와 부분, 분모와 분자', lesson: () => { const n = rnd(5, 8), k = rnd(2, n - 1); return [...L.meaning(4, 3), ...L.make('bar', 2, 5), ...L.make('pizza', k, n)]; } },
   { id: 2, icon: '⚖️', color: '#EF6C4D', title: '분수의 크기 비교', desc: '어느 쪽이 더 클까요?', lesson: () => [...L.compare(fr(2, 5), fr(4, 5)), ...L.compare(fr(1, 3), fr(1, 6))] },
-  { id: 3, icon: '🧩', color: '#D9488F', title: '진분수 · 가분수 · 대분수', desc: '여러 가지 분수와 바꾸어 쓰기', lesson: () => L.kinds() },
+  { id: 3, icon: '🧩', color: '#D9488F', title: '진분수 · 가분수 · 대분수', desc: '여러 가지 분수와 바꾸어 쓰기', lesson: () => [...L.kinds(), ...L.make('pizza', 5, 4), ...L.make('bar', 7, 3)] },
   { id: 4, icon: '🔍', color: '#8B5CF6', title: '크기가 같은 분수', desc: '약분과 통분', lesson: () => [...L.equiv(1, 2, 3), ...L.reduce(4, 6)] },
   { id: 5, icon: '➕', color: '#5B5BD6', title: '분수의 덧셈', desc: '분모가 같은 분수 더하기', lesson: () => [...L.addSame(fr(1, 4), fr(2, 4)), ...L.addSame(fr(3, 5), fr(4, 5))] },
   { id: 6, icon: '➖', color: '#3B82F6', title: '분수의 뺄셈', desc: '분모가 같은 분수 빼기', lesson: () => [...L.subSame(fr(4, 5), fr(1, 5)), ...L.subSame(fr(1, 4, 1), fr(3, 4))] },
@@ -154,7 +154,7 @@ function ansText(p) {
 }
 function checkAnswer(p, input) {
   if (p.kind === 'choice') return input == null ? { incomplete: true, msg: '보기에서 하나를 골라 주세요.' } : { ok: input === p.ans };
-  if (p.kind === 'tap') return input === 0 ? { incomplete: true, msg: '칸을 눌러 색칠해 주세요.' } : { ok: input === p.ans, msg: input !== p.ans ? `지금 ${input}칸을 색칠했어요. 분자를 다시 확인해 봐요.` : '' };
+  if (p.kind === 'tap') return input === 0 ? { incomplete: true, msg: '칸을 누르거나 드래그해서 색칠해 주세요.' } : { ok: input === p.ans, msg: input !== p.ans ? `지금 ${input}칸을 색칠했어요. 분자를 다시 확인해 봐요.` : '' };
   if (p.kind === 'int') return input.v === '' ? { incomplete: true, msg: '답을 입력해 주세요.' } : { ok: +input.v === p.ans };
   const hasW = p.slots.includes('w');
   const W = hasW && input.w !== '' ? +input.w : 0;
